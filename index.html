@@ -198,6 +198,52 @@
       z-index: 50;
     }
     .empty { text-align: center; color: var(--muted); padding: 24px 10px; }
+    .scan-box {
+      margin-top: 14px;
+      border-top: 1px dashed var(--border);
+      padding-top: 14px;
+      display: none;
+    }
+    .scan-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .scan-list {
+      display: grid;
+      gap: 8px;
+      max-height: 460px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .scan-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .scan-item.saved { background: #f0fdf4; border-color: #bbf7d0; }
+    .scan-info { flex: 1 1 280px; }
+    .scan-title { font-weight: 700; font-size: 0.95rem; }
+    .scan-meta { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #cbd5e1;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -238,6 +284,7 @@
           <option value="Cần Thơ">Cần Thơ</option>
         </select>
         <input id="findCustom" class="grow" placeholder="Hoặc gõ từ khóa riêng (vd: xúc xích KCN Sóng Thần)..." />
+        <button class="btn-primary" id="btnAutoScan" onclick="autoScanOSM()">⚡ Quét Tự Động</button>
         <button class="btn-accent" onclick="searchGoogleMaps()">🗺️ Mở Google Maps</button>
       </div>
       <div class="pill-group">
@@ -245,6 +292,20 @@
         <button class="pill" onclick="quickMap('kho lạnh Đồng Nai')">Kho lạnh Đồng Nai</button>
         <button class="pill" onclick="quickMap('xưởng thực phẩm TP.HCM')">Xưởng thực phẩm TP.HCM</button>
         <button class="pill" onclick="quickMap('thủy hải sản Long An')">Thủy hải sản Long An</button>
+      </div>
+      <div class="scan-box" id="scanResultSection">
+        <div class="scan-header">
+          <div id="scanStatusText" style="font-weight:600; font-size:0.92rem;"></div>
+          <div class="row">
+            <label style="font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="checkbox" id="hideFoodService" checked onchange="renderScanResults()" />
+              Ẩn quán ăn / cà phê
+            </label>
+            <button type="button" class="btn-primary btn-sm" id="btnSaveAllScan" onclick="saveAllScanResults()" style="display:none;">⚡ Lưu Tất Cả Chưa Trùng</button>
+            <button type="button" class="btn-outline btn-sm" onclick="closeScanResults()">✕ Đóng</button>
+          </div>
+        </div>
+        <div class="scan-list" id="scanList"></div>
       </div>
     </section>
 
@@ -444,7 +505,254 @@
         if (Array.isArray(data)) {
           leads = data;
           localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
-          renderLeads();
+          const AREA_BBOX = {
+      'Bình Dương': [10.82, 106.45, 11.48, 106.95],
+      'Đồng Nai': [10.60, 106.80, 11.55, 107.60],
+      'TP.HCM': [10.35, 106.35, 11.16, 107.03],
+      'Long An': [10.38, 105.50, 11.03, 106.78],
+      'Tiền Giang': [10.20, 105.80, 10.60, 106.80],
+      'Cần Thơ': [9.92, 105.22, 10.33, 105.85]
+    };
+
+    const INDUSTRY_QUERIES = {
+      'kho lạnh': ['kho lạnh', 'kho vận', 'logistics'],
+      'xưởng thực phẩm': ['thực phẩm', 'chế biến thực phẩm'],
+      'công ty thủy hải sản': ['thủy sản', 'hải sản'],
+      'nhà máy sữa kem': ['nhà máy sữa', 'sữa', 'kem'],
+      'thực phẩm đông lạnh': ['đông lạnh', 'thực phẩm'],
+      'trái cây xuất khẩu': ['nông sản', 'trái cây', 'chợ đầu mối']
+    };
+
+    const FOOD_SERVICE_TYPES = new Set(['cafe', 'restaurant', 'fast_food', 'bar', 'pub', 'food_court', 'ice_cream', 'biergarten']);
+    let scanResults = [];
+
+    function guessTempGroup(text) {
+      const n = normalizeVN(text);
+      if (n.includes('sua') || n.includes('trai cay') || n.includes('nong san') || n.includes('mat')) {
+        return 'Hàng mát (2-8°C)';
+      }
+      if (n.includes('thuy san') || n.includes('hai san') || n.includes('dong lanh') || n.includes('kem') || n.includes('kho lanh')) {
+        return 'Hàng đông (-18°C)';
+      }
+      return 'Đa nhiệt độ';
+    }
+
+    function isAlreadyInCRM(name) {
+      const target = normalizeVN(name).trim();
+      if (!target) return false;
+      return leads.some(l => normalizeVN(l.name).trim() === target);
+    }
+
+    async function fetchNominatim(query, bbox) {
+      const [south, west, north, east] = bbox;
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&limit=25&countrycodes=vn&viewbox=${west},${north},${east},${south}&bounded=1&q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error('Nominatim error');
+      const data = await res.json();
+      return (Array.isArray(data) ? data : []).map(item => {
+        const extra = item.extratags || {};
+        const phone = extra.phone || extra['contact:phone'] || extra['contact:mobile'] || '';
+        const website = extra.website || extra['contact:website'] || '';
+        const name = item.name || (item.display_name || '').split(',')[0].trim();
+        return {
+          osmKey: `${item.osm_type}-${item.osm_id}`,
+          name,
+          address: item.display_name || '',
+          phone,
+          website,
+          lat: item.lat,
+          lon: item.lon,
+          category: item.category || '',
+          type: item.type || '',
+          temp: guessTempGroup(`${query} ${name}`)
+        };
+      });
+    }
+
+    async function fetchOverpassFallback(keywords, bbox) {
+      const [south, west, north, east] = bbox;
+      const pattern = keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      const ql = `[out:json][timeout:12];(node["name"~"${pattern}",i](${south},${west},${north},${east});way["name"~"${pattern}",i](${south},${west},${north},${east}););out center 25;`;
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(ql)
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.elements || []).map(el => {
+        const tags = el.tags || {};
+        const lat = el.lat || (el.center && el.center.lat) || '';
+        const lon = el.lon || (el.center && el.center.lon) || '';
+        const addrParts = [tags['addr:housenumber'], tags['addr:street'], tags['addr:subdistrict'], tags['addr:district'], tags['addr:city']].filter(Boolean);
+        return {
+          osmKey: `${el.type}-${el.id}`,
+          name: tags.name || '',
+          address: addrParts.join(', '),
+          phone: tags.phone || tags['contact:phone'] || tags['contact:mobile'] || '',
+          website: tags.website || tags['contact:website'] || '',
+          lat,
+          lon,
+          category: tags.amenity ? 'amenity' : (tags.shop ? 'shop' : 'industrial'),
+          type: tags.amenity || tags.shop || tags.industrial || '',
+          temp: guessTempGroup(tags.name || '')
+        };
+      }).filter(x => x.name);
+    }
+
+    async function autoScanOSM() {
+      const industry = document.getElementById('findIndustry').value;
+      const area = document.getElementById('findArea').value;
+      const custom = document.getElementById('findCustom').value.trim();
+      const bbox = AREA_BBOX[area] || [10.35, 106.35, 11.48, 107.60];
+      const queries = custom ? [custom] : (INDUSTRY_QUERIES[industry] || [industry]);
+
+      const section = document.getElementById('scanResultSection');
+      const statusEl = document.getElementById('scanStatusText');
+      const listEl = document.getElementById('scanList');
+      const btn = document.getElementById('btnAutoScan');
+
+      section.style.display = 'block';
+      btn.disabled = true;
+      statusEl.innerHTML = `<span class="spinner"></span> Đang quét dữ liệu bản đồ mở tại ${escapeHtml(area)}...`;
+      listEl.innerHTML = '';
+      document.getElementById('btnSaveAllScan').style.display = 'none';
+
+      try {
+        const seen = new Set();
+        const combined = [];
+        for (const q of queries) {
+          try {
+            const items = await fetchNominatim(q, bbox);
+            for (const it of items) {
+              const key = normalizeVN(it.name);
+              if (it.name && !seen.has(key)) {
+                seen.add(key);
+                it.area = area;
+                combined.push(it);
+              }
+            }
+          } catch (err) {}
+        }
+
+        if (combined.length < 6) {
+          try {
+            const extraItems = await fetchOverpassFallback(queries, bbox);
+            for (const it of extraItems) {
+              const key = normalizeVN(it.name);
+              if (it.name && !seen.has(key)) {
+                seen.add(key);
+                it.area = area;
+                combined.push(it);
+              }
+            }
+          } catch (err) {}
+        }
+
+        scanResults = combined;
+        renderScanResults();
+      } catch (e) {
+        statusEl.textContent = '⚠️ Không thể kết nối máy chủ bản đồ mở lúc này, anh thử lại sau vài giây hoặc dùng nút Mở Google Maps nhé!';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderScanResults() {
+      const hideFood = document.getElementById('hideFoodService').checked;
+      const visible = scanResults.filter(it => !hideFood || !FOOD_SERVICE_TYPES.has(it.type));
+      const statusEl = document.getElementById('scanStatusText');
+      const listEl = document.getElementById('scanList');
+      const saveAllBtn = document.getElementById('btnSaveAllScan');
+
+      if (visible.length === 0) {
+        statusEl.textContent = 'Không tìm thấy cơ sở phù hợp trên bản đồ mở ở khu vực này.';
+        listEl.innerHTML = '<div class="empty">Anh thử bỏ tick "Ẩn quán ăn / cà phê", đổi từ khóa ngắn hơn (vd: "thực phẩm", "hải sản") hoặc bấm "🗺️ Mở Google Maps" để tìm thêm nhé!</div>';
+        saveAllBtn.style.display = 'none';
+        return;
+      }
+
+      const unsavedCount = visible.filter(it => !isAlreadyInCRM(it.name)).length;
+      statusEl.textContent = `✅ Quét được ${visible.length} địa điểm (${unsavedCount} địa điểm chưa có trong CRM)`;
+      saveAllBtn.style.display = unsavedCount > 0 ? 'inline-flex' : 'none';
+
+      listEl.innerHTML = visible.map((it, idx) => {
+        const saved = isAlreadyInCRM(it.name);
+        const mapLink = it.lat && it.lon ? `https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lon}` : `https://www.google.com/maps/search/${encodeURIComponent(it.name + ' ' + it.area)}`;
+        return `
+          <div class="scan-item ${saved ? 'saved' : ''}">
+            <div class="scan-info">
+              <div class="scan-title">${escapeHtml(it.name)} <span class="badge b-new">${escapeHtml(it.temp)}</span></div>
+              <div class="scan-meta">
+                📍 ${escapeHtml(it.address || it.area)}
+                ${it.phone ? ` · 📱 ${escapeHtml(it.phone)}` : ' · (Chưa có SĐT trên OSM)'}
+                ${it.website ? ` · <a href="${escapeHtml(it.website)}" target="_blank">🌐 Web</a>` : ''}
+                · <a href="${mapLink}" target="_blank">🗺️ Xem vị trí</a>
+              </div>
+            </div>
+            <div>
+              ${saved
+                ? '<button type="button" class="btn-outline btn-sm" disabled>✓ Đã có trong CRM</button>'
+                : `<button type="button" class="btn-primary btn-sm" onclick="saveScannedLead('${escapeHtml(it.osmKey)}')">+ Lưu vào CRM</button>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function saveScannedLead(osmKey) {
+      const it = scanResults.find(x => x.osmKey === osmKey);
+      if (!it || isAlreadyInCRM(it.name)) return;
+      leads.unshift({
+        id: 'lead-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        name: it.name,
+        phone: it.phone || 'Chưa có SĐT',
+        area: it.area || '',
+        address: it.address || '',
+        temp: it.temp || 'Đa nhiệt độ',
+        status: 'new',
+        nextDate: new Date().toISOString().slice(0, 10),
+        notes: `Quét tự động từ bản đồ mở.${it.website ? ' Web: ' + it.website : ''}`,
+        updatedAt: Date.now()
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+      renderLeads();
+      renderScanResults();
+      syncToFirebase();
+      showToast('Đã lưu "' + it.name + '" vào danh sách CRM!');
+    }
+
+    function saveAllScanResults() {
+      const hideFood = document.getElementById('hideFoodService').checked;
+      const visible = scanResults.filter(it => (!hideFood || !FOOD_SERVICE_TYPES.has(it.type)) && !isAlreadyInCRM(it.name));
+      if (visible.length === 0) return;
+      const today = new Date().toISOString().slice(0, 10);
+      visible.forEach((it, idx) => {
+        leads.unshift({
+          id: 'lead-' + Date.now() + '-' + idx,
+          name: it.name,
+          phone: it.phone || 'Chưa có SĐT',
+          area: it.area || '',
+          address: it.address || '',
+          temp: it.temp || 'Đa nhiệt độ',
+          status: 'new',
+          nextDate: today,
+          notes: `Quét tự động từ bản đồ mở.${it.website ? ' Web: ' + it.website : ''}`,
+          updatedAt: Date.now()
+        });
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+      renderLeads();
+      renderScanResults();
+      syncToFirebase();
+      showToast(`Đã lưu ${visible.length} đối tác mới vào danh sách CRM!`);
+    }
+
+    function closeScanResults() {
+      document.getElementById('scanResultSection').style.display = 'none';
+    }
+
+    renderLeads();
         }
         document.getElementById('syncStatus').textContent = '☁️ Đã kết nối Google Firebase';
       } catch (e) {
