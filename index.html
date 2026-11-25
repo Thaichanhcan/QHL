@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tìm Khách & CRM Xe Lạnh</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --primary: #0f766e;
+      --primary-dark: #115e59;
+      --accent: #0284c7;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 16px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    h1 { margin: 0; font-size: 1.25rem; }
+    .sub { font-size: 0.85rem; opacity: 0.9; }
+    .container {
+      max-width: 1120px;
+      margin: 18px auto 40px;
+      padding: 0 14px;
+      display: grid;
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    .stat-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .stat-box .num { font-size: 1.4rem; font-weight: 700; color: var(--primary); }
+    .stat-box.due .num { color: var(--danger); }
+    .stat-box .lbl { font-size: 0.82rem; color: var(--muted); }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    input, select, textarea {
+      font: inherit;
+      padding: 9px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid rgba(15, 118, 110, 0.25);
+      border-color: var(--primary);
+    }
+    .grow { flex: 1 1 200px; }
+    button {
+      font: inherit;
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-outline { background: #fff; border-color: #cbd5e1; color: var(--text); }
+    .btn-outline:hover { background: #f8fafc; }
+    .btn-danger { background: #fee2e2; color: var(--danger); }
+    .btn-sm { padding: 6px 10px; font-size: 0.82rem; }
+    .pill-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .pill {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: none;
+      padding: 6px 11px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pill:hover { background: #bae6fd; }
+    .lead-list { display: grid; gap: 10px; margin-top: 12px; }
+    .lead-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #fff;
+      display: grid;
+      gap: 8px;
+    }
+    .lead-item.overdue {
+      border-left: 4px solid var(--danger);
+      background: #fffafa;
+    }
+    .lead-item.today {
+      border-left: 4px solid var(--warn);
+      background: #fffdf5;
+    }
+    .lead-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .lead-name { font-weight: 700; font-size: 1rem; }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+    .b-new { background: #e2e8f0; color: #334155; }
+    .b-contacted { background: #dbeafe; color: #1d4ed8; }
+    .b-quoted { background: #fef3c7; color: #b45309; }
+    .b-trial { background: #ede9fe; color: #6d28d9; }
+    .b-won { background: #dcfce7; color: #15803d; }
+    .b-none { background: #f1f5f9; color: #64748b; }
+    .meta { font-size: 0.86rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; }
+    .note-box {
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.86rem;
+    }
+    dialog {
+      border: none;
+      border-radius: 12px;
+      padding: 18px;
+      max-width: 560px;
+      width: 94%;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    dialog::backdrop { background: rgba(15, 23, 42, 0.5); }
+    .form-grid { display: grid; gap: 10px; }
+    .form-grid label { font-size: 0.84rem; font-weight: 600; display: grid; gap: 4px; }
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      display: none;
+      z-index: 50;
+    }
+    .empty { text-align: center; color: var(--muted); padding: 24px 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>❄️ CRM Tìm Khách & Chăm Sóc Xe Lạnh</h1>
+        <div class="sub" id="syncStatus">Lưu cục bộ trên trình duyệt (sẵn sàng kết nối Firebase)</div>
+      </div>
+      <div class="row">
+        <button class="btn-outline btn-sm" onclick="openTemplateModal()">💬 Mẫu chào hàng</button>
+        <button class="btn-outline btn-sm" onclick="openFirebaseModal()">☁️ Kết nối Firebase</button>
+        <button class="btn-outline btn-sm" onclick="exportCSV()">⬇️ Xuất CSV</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="stats" id="statsBar"></section>
+
+    <section class="card">
+      <h2>🔍 1. Tìm Nguồn Khách Hàng Nhanh (Google Maps)</h2>
+      <div class="row">
+        <select id="findIndustry">
+          <option value="kho lạnh">Kho lạnh</option>
+          <option value="xưởng thực phẩm">Xưởng thực phẩm</option>
+          <option value="công ty thủy hải sản">Công ty thủy hải sản</option>
+          <option value="nhà máy sữa kem">Nhà máy sữa / kem</option>
+          <option value="thực phẩm đông lạnh">Thực phẩm đông lạnh</option>
+          <option value="trái cây xuất khẩu">Trái cây / nông sản lạnh</option>
+        </select>
+        <select id="findArea">
+          <option value="Bình Dương">Bình Dương</option>
+          <option value="Đồng Nai">Đồng Nai</option>
+          <option value="TP.HCM">TP.HCM</option>
+          <option value="Long An">Long An</option>
+          <option value="Tiền Giang">Tiền Giang</option>
+          <option value="Cần Thơ">Cần Thơ</option>
+        </select>
+        <input id="findCustom" class="grow" placeholder="Hoặc gõ từ khóa riêng (vd: xúc xích KCN Sóng Thần)..." />
+        <button class="btn-accent" onclick="searchGoogleMaps()">🗺️ Mở Google Maps</button>
+      </div>
+      <div class="pill-group">
+        <button class="pill" onclick="quickMap('kho lạnh Bình Dương')">Kho lạnh Bình Dương</button>
+        <button class="pill" onclick="quickMap('kho lạnh Đồng Nai')">Kho lạnh Đồng Nai</button>
+        <button class="pill" onclick="quickMap('xưởng thực phẩm TP.HCM')">Xưởng thực phẩm TP.HCM</button>
+        <button class="pill" onclick="quickMap('thủy hải sản Long An')">Thủy hải sản Long An</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content: space-between; margin-bottom: 12px;">
+        <h2 style="margin:0;">📋 2. Danh Sách Khách Hàng & Nhắc Hẹn</h2>
+        <button class="btn-primary" onclick="openLeadModal()">+ Thêm Khách Mới</button>
+      </div>
+
+      <div class="row">
+        <input id="searchInput" class="grow" placeholder="Tìm tên công ty, SĐT, khu vực, ghi chú (hỗ trợ không dấu)..." oninput="renderLeads()" />
+        <select id="filterStatus" onchange="renderLeads()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="new">Mới tìm thấy</option>
+          <option value="contacted">Đã liên hệ</option>
+          <option value="quoted">Đang báo giá</option>
+          <option value="trial">Chạy thử</option>
+          <option value="won">Khách ruột</option>
+          <option value="none">Chưa có nhu cầu</option>
+        </select>
+        <select id="filterTemp" onchange="renderLeads()">
+          <option value="">Tất cả loại hàng</option>
+          <option value="Hàng đông (-18°C)">Hàng đông (-18°C)</option>
+          <option value="Hàng mát (2-8°C)">Hàng mát (2-8°C)</option>
+          <option value="Đa nhiệt độ">Đa nhiệt độ</option>
+        </select>
+      </div>
+
+      <div class="lead-list" id="leadList"></div>
+    </section>
+  </main>
+
+  <dialog id="leadModal">
+    <form class="form-grid" onsubmit="saveLead(event)">
+      <h3 style="margin:0 0 4px;" id="modalTitle">Thêm Khách Hàng Tiềm Năng</h3>
+      <input type="hidden" id="leadId" />
+      <label>Tên công ty / Đối tác *
+        <input id="leadName" required placeholder="VD: Kho Lạnh Miền Nam" />
+      </label>
+      <div class="row">
+        <label class="grow">Số điện thoại / Zalo *
+          <input id="leadPhone" required placeholder="090xxxxxxx" />
+        </label>
+        <label class="grow">Khu vực
+          <input id="leadArea" placeholder="VD: Bình Dương" />
+        </label>
+      </div>
+      <label>Địa chỉ cụ thể
+        <input id="leadAddress" placeholder="Số đường, KCN, tỉnh/thành..." />
+      </label>
+      <div class="row">
+        <label class="grow">Nhóm hàng
+          <select id="leadTemp">
+            <option value="Hàng đông (-18°C)">Hàng đông (-18°C)</option>
+            <option value="Hàng mát (2-8°C)">Hàng mát (2-8°C)</option>
+            <option value="Đa nhiệt độ">Đa nhiệt độ</option>
+          </select>
+        </label>
+        <label class="grow">Trạng thái
+          <select id="leadStatus">
+            <option value="new">Mới tìm thấy</option>
+            <option value="contacted">Đã liên hệ</option>
+            <option value="quoted">Đang báo giá</option>
+            <option value="trial">Chạy thử</option>
+            <option value="won">Khách ruột</option>
+            <option value="none">Chưa có nhu cầu</option>
+          </select>
+        </label>
+      </div>
+      <label>Ngày hẹn gọi lại (nhắc lịch)
+        <input type="date" id="leadNextDate" />
+      </label>
+      <label>Ghi chú trao đổi
+        <textarea id="leadNotes" rows="3" placeholder="VD: Đang chạy xe ngoài, hẹn đầu tháng sau báo giá tuyến Bình Dương - HCM..."></textarea>
+      </label>
+      <div class="row" style="justify-content: flex-end; margin-top: 6px;">
+        <button type="button" class="btn-outline" onclick="document.getElementById('leadModal').close()">Hủy</button>
+        <button type="submit" class="btn-primary">Lưu Khách Hàng</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="templateModal">
+    <div class="form-grid">
+      <h3 style="margin:0;">💬 Mẫu Tin Nhắn Chào Hàng</h3>
+      <div class="sub" style="color:var(--muted);">Dùng <code>{TEN_KHACH}</code> để tự động điền tên đối tác khi sao chép.</div>
+      <textarea id="msgTemplate" rows="7"></textarea>
+      <div class="row" style="justify-content: flex-end;">
+        <button class="btn-outline" onclick="document.getElementById('templateModal').close()">Đóng</button>
+        <button class="btn-primary" onclick="saveTemplate()">Lưu Mẫu</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="firebaseModal">
+    <div class="form-grid">
+      <h3 style="margin:0;">☁️ Đồng Bộ Google Firebase Realtime DB</h3>
+      <div class="sub" style="color:var(--muted);">
+        Dán đường dẫn Realtime Database của anh (VD: <code>https://ten-project-default-rtdb.asia-southeast1.firebasedatabase.app</code>). Để trống nếu chỉ lưu trên máy hiện tại.
+      </div>
+      <label>Firebase Realtime Database URL
+        <input id="fbUrl" placeholder="https://...-rtdb.firebaseio.com" />
+      </label>
+      <div class="row" style="justify-content: flex-end;">
+        <button class="btn-outline" onclick="document.getElementById('firebaseModal').close()">Đóng</button>
+        <button class="btn-primary" onclick="saveFirebaseUrl()">Lưu & Đồng Bộ</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = 'cold_crm_leads_v1';
+    const TEMPLATE_KEY = 'cold_crm_template_v1';
+    const FB_URL_KEY = 'cold_crm_fb_url_v1';
+
+    const DEFAULT_TEMPLATE = `Dạ em chào anh/chị bên {TEN_KHACH} ạ.\nBên em chuyên cung cấp xe tải lạnh vận chuyển hàng mát (2°C–8°C) và hàng đông (-18°C) khu vực TP.HCM, Bình Dương, Đồng Nai và đi tỉnh.\nĐặc biệt bên em có link theo dõi nhiệt độ thùng xe và GPS trực tuyến 24/7 gửi trực tiếp cho khách hàng kiểm tra suốt chuyến đi.\nKhi nào bên mình cần xe chạy tăng cường hoặc tuyến cố định, anh/chị nhắn em báo giá tốt để chạy thử nhé ạ!`;
+
+    const STATUS_MAP = {
+      new: { label: 'Mới tìm thấy', cls: 'b-new' },
+      contacted: { label: 'Đã liên hệ', cls: 'b-contacted' },
+      quoted: { label: 'Đang báo giá', cls: 'b-quoted' },
+      trial: { label: 'Chạy thử', cls: 'b-trial' },
+      won: { label: 'Khách ruột', cls: 'b-won' },
+      none: { label: 'Chưa có nhu cầu', cls: 'b-none' }
+    };
+
+    let leads = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (leads.length === 0) {
+      leads = [
+        {
+          id: 'sample-1',
+          name: 'Kho Lạnh An Bình (Mẫu)',
+          phone: '0909123456',
+          area: 'Bình Dương',
+          address: 'KCN Sóng Thần 1, Dĩ An, Bình Dương',
+          temp: 'Hàng đông (-18°C)',
+          status: 'quoted',
+          nextDate: new Date().toISOString().slice(0, 10),
+          notes: 'Đã gửi bảng giá tuyến Bình Dương - TP.HCM, hẹn gọi lại xác nhận lịch chạy thử.',
+          updatedAt: Date.now()
+        }
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+    }
+
+    function normalizeVN(str) {
+      return (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => { t.style.display = 'none'; }, 2600);
+    }
+
+    function searchGoogleMaps() {
+      const custom = document.getElementById('findCustom').value.trim();
+      const q = custom || `${document.getElementById('findIndustry').value} ${document.getElementById('findArea').value}`;
+      window.open(`https://www.google.com/maps/search/${encodeURIComponent(q)}`, '_blank');
+    }
+
+    function quickMap(q) {
+      window.open(`https://www.google.com/maps/search/${encodeURIComponent(q)}`, '_blank');
+    }
+
+    async function syncToFirebase() {
+      const url = localStorage.getItem(FB_URL_KEY);
+      if (!url) return;
+      const cleanUrl = url.replace(/\/+$/, '');
+      try {
+        await fetch(`${cleanUrl}/cold_crm_leads.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(leads)
+        });
+        document.getElementById('syncStatus').textContent = '☁️ Đã đồng bộ Google Firebase';
+      } catch (e) {
+        document.getElementById('syncStatus').textContent = '⚠️ Lỗi đồng bộ Firebase (đang lưu cục bộ)';
+      }
+    }
+
+    async function loadFromFirebase() {
+      const url = localStorage.getItem(FB_URL_KEY);
+      if (!url) return;
+      const cleanUrl = url.replace(/\/+$/, '');
+      try {
+        const res = await fetch(`${cleanUrl}/cold_crm_leads.json`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          leads = data;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+          renderLeads();
+        }
+        document.getElementById('syncStatus').textContent = '☁️ Đã kết nối Google Firebase';
+      } catch (e) {
+        document.getElementById('syncStatus').textContent = '⚠️ Không tải được từ Firebase (dùng dữ liệu cục bộ)';
+      }
+    }
+
+    function renderStats() {
+      const today = new Date().toISOString().slice(0, 10);
+      const dueCount = leads.filter(l => l.nextDate && l.nextDate <= today && l.status !== 'none' && l.status !== 'won').length;
+      const wonCount = leads.filter(l => l.status === 'won').length;
+      const quotedCount = leads.filter(l => l.status === 'quoted' || l.status === 'trial').length;
+      document.getElementById('statsBar').innerHTML = `
+        <div class="stat-box"><div class="num">${leads.length}</div><div class="lbl">Tổng đối tác</div></div>
+        <div class="stat-box due"><div class="num">${dueCount}</div><div class="lbl">Cần gọi hôm nay / quá hạn</div></div>
+        <div class="stat-box"><div class="num">${quotedCount}</div><div class="lbl">Đang báo giá / chạy thử</div></div>
+        <div class="stat-box"><div class="num">${wonCount}</div><div class="lbl">Khách ruột</div></div>
+      `;
+    }
+
+    function renderLeads() {
+      renderStats();
+      const q = normalizeVN(document.getElementById('searchInput').value.trim());
+      const st = document.getElementById('filterStatus').value;
+      const tp = document.getElementById('filterTemp').value;
+      const today = new Date().toISOString().slice(0, 10);
+
+      const filtered = leads
+        .filter(l => {
+          if (st && l.status !== st) return false;
+          if (tp && l.temp !== tp) return false;
+          if (q) {
+            const hay = normalizeVN(`${l.name} ${l.phone} ${l.area} ${l.address} ${l.notes}`);
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          const aDue = a.nextDate && a.nextDate <= today ? 1 : 0;
+          const bDue = b.nextDate && b.nextDate <= today ? 1 : 0;
+          if (aDue !== bDue) return bDue - aDue;
+          return (b.updatedAt || 0) - (a.updatedAt || 0);
+        });
+
+      const container = document.getElementById('leadList');
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty">Chưa có khách hàng nào khớp bộ lọc. Bấm "+ Thêm Khách Mới" để lưu đối tác nhé anh!</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(l => {
+        const s = STATUS_MAP[l.status] || STATUS_MAP.new;
+        let dueCls = '';
+        let dueText = '';
+        if (l.nextDate) {
+          if (l.nextDate < today) {
+            dueCls = 'overdue';
+            dueText = `⚠️ Quá hẹn: ${l.nextDate}`;
+          } else if (l.nextDate === today) {
+            dueCls = 'today';
+            dueText = `⏰ Hẹn hôm nay: ${l.nextDate}`;
+          } else {
+            dueText = `📅 Hẹn gọi: ${l.nextDate}`;
+          }
+        }
+        const cleanPhone = (l.phone || '').replace(/\D/g, '');
+        return `
+          <div class="lead-item ${dueCls}">
+            <div class="lead-top">
+              <div>
+                <span class="lead-name">${escapeHtml(l.name)}</span>
+                <span class="badge ${s.cls}">${s.label}</span>
+              </div>
+              <div class="row">
+                <a href="tel:${cleanPhone}" style="text-decoration:none;"><button type="button" class="btn-outline btn-sm">📞 Gọi</button></a>
+                <a href="https://zalo.me/${cleanPhone}" target="_blank" style="text-decoration:none;"><button type="button" class="btn-outline btn-sm">💬 Zalo</button></a>
+                <button type="button" class="btn-accent btn-sm" onclick="copyPitch('${l.id}')">📋 Chào hàng</button>
+                <button type="button" class="btn-outline btn-sm" onclick="openLeadModal('${l.id}')">✏️ Sửa</button>
+                <button type="button" class="btn-danger btn-sm" onclick="deleteLead('${l.id}')">🗑️</button>
+              </div>
+            </div>
+            <div class="meta">
+              <span>📱 ${escapeHtml(l.phone)}</span>
+              <span>📍 ${escapeHtml(l.area || 'Chưa rõ')}${l.address ? ' — ' + escapeHtml(l.address) : ''}</span>
+              <span>❄️ ${escapeHtml(l.temp)}</span>
+              ${dueText ? `<span>${dueText}</span>` : ''}
+            </div>
+            ${l.notes ? `<div class="note-box">📝 ${escapeHtml(l.notes)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function openLeadModal(id) {
+      const modal = document.getElementById('leadModal');
+      if (id) {
+        const l = leads.find(x => x.id === id);
+        if (!l) return;
+        document.getElementById('modalTitle').textContent = 'Cập Nhật Thông Tin Khách';
+        document.getElementById('leadId').value = l.id;
+        document.getElementById('leadName').value = l.name || '';
+        document.getElementById('leadPhone').value = l.phone || '';
+        document.getElementById('leadArea').value = l.area || '';
+        document.getElementById('leadAddress').value = l.address || '';
+        document.getElementById('leadTemp').value = l.temp || 'Hàng đông (-18°C)';
+        document.getElementById('leadStatus').value = l.status || 'new';
+        document.getElementById('leadNextDate').value = l.nextDate || '';
+        document.getElementById('leadNotes').value = l.notes || '';
+      } else {
+        document.getElementById('modalTitle').textContent = 'Thêm Khách Hàng Tiềm Năng';
+        document.getElementById('leadId').value = '';
+        document.getElementById('leadName').value = '';
+        document.getElementById('leadPhone').value = '';
+        document.getElementById('leadArea').value = '';
+        document.getElementById('leadAddress').value = '';
+        document.getElementById('leadTemp').value = 'Hàng đông (-18°C)';
+        document.getElementById('leadStatus').value = 'new';
+        document.getElementById('leadNextDate').value = '';
+        document.getElementById('leadNotes').value = '';
+      }
+      modal.showModal();
+    }
+
+    function saveLead(e) {
+      e.preventDefault();
+      const id = document.getElementById('leadId').value;
+      const item = {
+        id: id || 'lead-' + Date.now(),
+        name: document.getElementById('leadName').value.trim(),
+        phone: document.getElementById('leadPhone').value.trim(),
+        area: document.getElementById('leadArea').value.trim(),
+        address: document.getElementById('leadAddress').value.trim(),
+        temp: document.getElementById('leadTemp').value,
+        status: document.getElementById('leadStatus').value,
+        nextDate: document.getElementById('leadNextDate').value,
+        notes: document.getElementById('leadNotes').value.trim(),
+        updatedAt: Date.now()
+      };
+      if (id) {
+        const idx = leads.findIndex(x => x.id === id);
+        if (idx >= 0) leads[idx] = item;
+      } else {
+        leads.unshift(item);
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+      document.getElementById('leadModal').close();
+      renderLeads();
+      syncToFirebase();
+      showToast('Đã lưu thông tin khách hàng!');
+    }
+
+    function deleteLead(id) {
+      if (!confirm('Anh có chắc chắn muốn xóa khách hàng này khỏi danh sách không?')) return;
+      leads = leads.filter(x => x.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+      renderLeads();
+      syncToFirebase();
+      showToast('Đã xóa khách hàng.');
+    }
+
+    function copyPitch(id) {
+      const l = leads.find(x => x.id === id);
+      if (!l) return;
+      const tpl = localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE;
+      const text = tpl.replace(/\{TEN_KHACH\}/g, l.name);
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Đã sao chép tin nhắn chào hàng cho ' + l.name);
+      });
+    }
+
+    function openTemplateModal() {
+      document.getElementById('msgTemplate').value = localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE;
+      document.getElementById('templateModal').showModal();
+    }
+
+    function saveTemplate() {
+      localStorage.setItem(TEMPLATE_KEY, document.getElementById('msgTemplate').value);
+      document.getElementById('templateModal').close();
+      showToast('Đã lưu mẫu tin nhắn chào hàng!');
+    }
+
+    function openFirebaseModal() {
+      document.getElementById('fbUrl').value = localStorage.getItem(FB_URL_KEY) || '';
+      document.getElementById('firebaseModal').showModal();
+    }
+
+    function saveFirebaseUrl() {
+      const val = document.getElementById('fbUrl').value.trim();
+      if (val) {
+        localStorage.setItem(FB_URL_KEY, val);
+        syncToFirebase();
+      } else {
+        localStorage.removeItem(FB_URL_KEY);
+        document.getElementById('syncStatus').textContent = 'Lưu cục bộ trên trình duyệt';
+      }
+      document.getElementById('firebaseModal').close();
+      showToast('Đã cập nhật cấu hình Firebase!');
+    }
+
+    function exportCSV() {
+      const headers = ['Tên công ty', 'SĐT', 'Khu vực', 'Địa chỉ', 'Nhóm hàng', 'Trạng thái', 'Ngày hẹn', 'Ghi chú'];
+      const rows = leads.map(l => [
+        l.name, l.phone, l.area, l.address, l.temp,
+        (STATUS_MAP[l.status] || {}).label || l.status,
+        l.nextDate, l.notes
+      ].map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
+      const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'danh-sach-khach-xe-lanh.csv';
+      a.click();
+    }
+
+    renderLeads();
+    loadFromFirebase();
+  </script>
+</body>
+</html>
